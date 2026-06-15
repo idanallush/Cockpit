@@ -57,6 +57,18 @@ export async function syncAnthropicCosts(
   let nextPage: string | null = null;
   let safetyPages = 0;
 
+  // Wipe the slice we're about to repopulate. Keeps the sync idempotent even
+  // when the underlying unique constraint treats NULL project_ids as distinct.
+  // Includes legacy rows that pre-date the `source` tag (source IS NULL) so
+  // the first run after deploy cleans up any accumulated duplicates.
+  await supabase
+    .from("usage_records")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "anthropic")
+    .gte("date", starting.toISOString().slice(0, 10))
+    .or("raw_data->>source.eq.cost_report,raw_data->>source.is.null");
+
   try {
     do {
       const url = new URL(COST_URL);
@@ -131,6 +143,7 @@ export async function syncAnthropicCosts(
                 date: dateStr,
                 cost_usd: cost,
                 raw_data: {
+                  source: "cost_report",
                   bucket_starting_at: bucket.starting_at,
                   bucket_ending_at: bucket.ending_at,
                   workspace_id,

@@ -46,6 +46,15 @@ export async function syncOpenAICosts(
   let nextPage: string | null = null;
   let safetyPages = 0;
 
+  // Wipe the slice we're about to repopulate — see comment in anthropic.ts.
+  const sinceDate = new Date(startTime * 1000).toISOString().slice(0, 10);
+  await supabase
+    .from("usage_records")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "openai")
+    .gte("date", sinceDate);
+
   try {
     do {
       const url = new URL(BASE_URL);

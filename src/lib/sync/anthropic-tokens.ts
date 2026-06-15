@@ -61,6 +61,15 @@ export async function syncAnthropicTokens(
   let nextPage: string | null = null;
   let safetyPages = 0;
 
+  // Wipe the slice we're about to repopulate — see comment in anthropic.ts.
+  await supabase
+    .from("usage_records")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "anthropic")
+    .eq("raw_data->>source", "usage_report")
+    .gte("date", starting.toISOString().slice(0, 10));
+
   try {
     do {
       const url = new URL(USAGE_URL);
