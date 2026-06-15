@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signIn, signUp } from "./actions";
+import { signIn } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
             </div>
             <div className="flex flex-col gap-2">
               <Button formAction={signIn} type="submit">Sign in</Button>
-              <Button formAction={signUp} type="submit" variant="outline">Create account</Button>
             </div>
           </form>
           <p className="mt-4 text-xs text-muted-foreground">

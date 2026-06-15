@@ -18,15 +18,31 @@ src/
     page.tsx                  # Root: redirect to /dashboard or /login
     layout.tsx                # Root layout + Toaster
     login/
-      page.tsx                # Email/password login form
-      actions.ts              # signIn / signUp / signOut server actions
+      page.tsx                # Sign-in only (signup gated to first user)
+      actions.ts              # signIn / signUp (gated) / signOut
     auth/confirm/route.ts     # Supabase email-confirm handler
+    api/sync/route.ts         # POST: pulls OpenAI + Anthropic costs
     dashboard/
       layout.tsx              # Sidebar + topbar shell, auth-gated
-      page.tsx                # Overview (placeholder for Phase 1)
+      page.tsx                # Overview with stat cards + Sync Now
+      sync-button.tsx         # Client component, POST /api/sync
+      projects/               # Projects list + dialog + actions
+      api-keys/               # API keys list + dialog + actions
+      usage/page.tsx          # Usage table with day-range filter
+      alerts/page.tsx         # Placeholder for Phase 4
+      settings/page.tsx       # Account + env config status
   components/ui/              # shadcn primitives
   lib/
-    supabase/{client,server,middleware}.ts
+    crypto.ts                 # AES-256-GCM encrypt/decrypt/maskKey
+    supabase/
+      client.ts               # Browser client
+      server.ts               # SSR client (cookies)
+      middleware.ts           # Session refresh + redirect
+      admin.ts                # Service-role client (bypasses RLS)
+    sync/
+      openai.ts               # syncOpenAICosts()
+      anthropic.ts            # syncAnthropicCosts()
+      types.ts                # SyncResult type
     utils.ts
   middleware.ts               # Root middleware → updateSession
 supabase/
@@ -67,8 +83,14 @@ RLS is enabled on every table; policies scope rows to `auth.uid()`.
 - `@supabase/ssr` (NOT the deprecated `@supabase/auth-helpers-nextjs`).
 - `src/middleware.ts` refreshes the session cookie on every request and redirects unauthenticated users away from non-auth routes.
 
+## Cost sync model
+- Admin keys (`OPENAI_ADMIN_KEY`, `ANTHROPIC_ADMIN_KEY`) live in env, not the DB. They power org-wide cost sync.
+- Per-project provider keys are encrypted in the DB via `src/lib/crypto.ts` (AES-256-GCM with 96-bit IV + 128-bit auth tag), stored in `api_keys.encrypted_key`. They will be used in Phase 3 for per-project usage attribution.
+- `/api/sync` (POST) authenticates via the SSR client, then calls `syncOpenAICosts` and `syncAnthropicCosts` (which use the service-role client to upsert into `usage_records`, bypassing RLS after auth has been verified).
+- Single-user gate: `signUp` returns "Signups disabled." once a user already exists.
+
 ## Phase Status
 - [x] **Phase 1 — Foundation** (auth, schema, dashboard shell)
-- [ ] Phase 2 — Provider integration (OpenAI/Anthropic admin APIs, per-project key encryption)
+- [x] **Phase 2 — Provider integration** (projects, encrypted keys, OpenAI + Anthropic cost sync, overview/usage pages)
 - [ ] Phase 3 — Scheduled health checks + usage sync, charts, caching
 - [ ] Phase 4 — Alerts (cost thresholds, webhooks), security hardening
