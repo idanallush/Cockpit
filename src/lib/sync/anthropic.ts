@@ -86,17 +86,20 @@ export async function syncAnthropicCosts(
         const dateStr = bucket.starting_at.slice(0, 10);
 
         // Group by description (Anthropic's line item label, e.g. model name).
+        // Per the Cost API docs: "All costs in USD, reported as decimal
+        // strings in lowest units (cents)" — divide by 100 to get dollars.
         const byKey = new Map<
           string | null,
           { cost: number; entries: AnthropicCostResult[] }
         >();
         for (const r of bucket.results ?? []) {
           const key = r.description ?? r.model ?? null;
-          const amount =
+          const rawAmount =
             typeof r.amount === "string" ? parseFloat(r.amount) : (r.amount ?? 0);
-          if (!Number.isFinite(amount)) continue;
+          if (!Number.isFinite(rawAmount)) continue;
+          const amountUsd = rawAmount / 100; // cents → dollars
           const entry = byKey.get(key) ?? { cost: 0, entries: [] };
-          entry.cost += amount;
+          entry.cost += amountUsd;
           entry.entries.push(r);
           byKey.set(key, entry);
         }
