@@ -26,10 +26,18 @@ export function ProjectRowActions({
   id,
   name,
   description,
+  openaiIds,
+  anthropicIds,
+  openaiSuggestions,
+  anthropicSuggestions,
 }: {
   id: string;
   name: string;
   description: string;
+  openaiIds: string[];
+  anthropicIds: string[];
+  openaiSuggestions: string[];
+  anthropicSuggestions: string[];
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -69,7 +77,9 @@ export function ProjectRowActions({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>Update name or description.</DialogDescription>
+            <DialogDescription>
+              Adjust name, description, and provider ID mappings.
+            </DialogDescription>
           </DialogHeader>
           <form
             action={(formData) => {
@@ -93,6 +103,36 @@ export function ProjectRowActions({
             <div className="grid gap-2">
               <Label htmlFor={`desc-${id}`}>Description</Label>
               <Input id={`desc-${id}`} name="description" defaultValue={description} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={`oa-${id}`}>OpenAI Project IDs</Label>
+              <Input
+                id={`oa-${id}`}
+                name="openai_project_ids"
+                defaultValue={openaiIds.join(", ")}
+                list={`oa-list-${id}`}
+                placeholder="proj_..."
+              />
+              <datalist id={`oa-list-${id}`}>
+                {openaiSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={`an-${id}`}>Anthropic Workspace IDs</Label>
+              <Input
+                id={`an-${id}`}
+                name="anthropic_workspace_ids"
+                defaultValue={anthropicIds.join(", ")}
+                list={`an-list-${id}`}
+                placeholder="wrkspc_..."
+              />
+              <datalist id={`an-list-${id}`}>
+                {anthropicSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={pending}>

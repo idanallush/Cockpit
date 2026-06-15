@@ -35,8 +35,10 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/auth");
+  // API routes handle their own auth (cron uses Bearer; manual sync uses SSR cookie).
+  const isApi = pathname.startsWith("/api/");
 
-  if (!user && !isAuthRoute && pathname !== "/") {
+  if (!user && !isAuthRoute && !isApi && pathname !== "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

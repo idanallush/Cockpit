@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { syncOpenAICosts } from "@/lib/sync/openai";
-import { syncAnthropicCosts } from "@/lib/sync/anthropic";
+import { syncOneUser } from "@/lib/sync/run-all";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,10 +16,6 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  const [openai, anthropic] = await Promise.all([
-    syncOpenAICosts(user.id, 30),
-    syncAnthropicCosts(user.id, 30),
-  ]);
-
-  return NextResponse.json({ openai, anthropic });
+  const summary = await syncOneUser(user.id, "manual", 30);
+  return NextResponse.json(summary);
 }

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildProjectMapper } from "./project-mapping";
 import type { SyncResult } from "./types";
 
 type AnthropicCostResult = {
@@ -29,14 +30,12 @@ const COST_URL = "https://api.anthropic.com/v1/organizations/cost_report";
 
 /**
  * Pulls daily Anthropic costs from the org cost report and upserts them into
- * `usage_records`.
+ * `usage_records`. Note: amounts come back in cents (per Anthropic docs:
+ * "All costs in USD, reported as decimal strings in lowest units (cents)"),
+ * so we divide by 100 before storing.
  *
- * Note: the real endpoint is `/v1/organizations/cost_report` (no `/messages`
- * suffix). Group-by is restricted to `description` and `workspace_id`; we use
- * `description` so each line item (e.g. "claude-sonnet-4 input tokens") lands
- * on its own row.
- *
- * Reads ANTHROPIC_ADMIN_KEY from env. Admin keys look like `sk-ant-admin01-...`.
+ * The cost endpoint only supports group_by[]=description or workspace_id; we
+ * use both so we can attribute each line to a workspace and an internal project.
  */
 export async function syncAnthropicCosts(
   userId: string,
@@ -52,6 +51,8 @@ export async function syncAnthropicCosts(
   const starting = new Date(ending.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
   const supabase = createAdminClient();
+  const mapper = await buildProjectMapper(supabase, userId);
+
   let processed = 0;
   let nextPage: string | null = null;
   let safetyPages = 0;
@@ -63,6 +64,7 @@ export async function syncAnthropicCosts(
       url.searchParams.set("ending_at", ending.toISOString());
       url.searchParams.set("bucket_width", "1d");
       url.searchParams.append("group_by[]", "description");
+      url.searchParams.append("group_by[]", "workspace_id");
       if (nextPage) url.searchParams.set("page", nextPage);
 
       const res = await fetch(url.toString(), {
@@ -85,40 +87,53 @@ export async function syncAnthropicCosts(
       for (const bucket of page.data ?? []) {
         const dateStr = bucket.starting_at.slice(0, 10);
 
-        // Group by description (Anthropic's line item label, e.g. model name).
-        // Per the Cost API docs: "All costs in USD, reported as decimal
-        // strings in lowest units (cents)" — divide by 100 to get dollars.
-        const byKey = new Map<
-          string | null,
-          { cost: number; entries: AnthropicCostResult[] }
-        >();
+        // Key by (description, workspace) so each project bucket gets its own row.
+        type Group = {
+          cost: number;
+          entries: AnthropicCostResult[];
+          workspace_id: string | null;
+          projectId: string | null;
+        };
+        const groups = new Map<string, Group>();
+
         for (const r of bucket.results ?? []) {
-          const key = r.description ?? r.model ?? null;
+          const desc = r.description ?? r.model ?? null;
+          const ws = r.workspace_id ?? null;
           const rawAmount =
             typeof r.amount === "string" ? parseFloat(r.amount) : (r.amount ?? 0);
           if (!Number.isFinite(rawAmount)) continue;
           const amountUsd = rawAmount / 100; // cents → dollars
-          const entry = byKey.get(key) ?? { cost: 0, entries: [] };
+
+          const projectId = mapper.anthropic(ws);
+          const groupKey = `${desc ?? ""}__${projectId ?? ""}`;
+          const entry = groups.get(groupKey) ?? {
+            cost: 0,
+            entries: [],
+            workspace_id: ws,
+            projectId,
+          };
           entry.cost += amountUsd;
           entry.entries.push(r);
-          byKey.set(key, entry);
+          groups.set(groupKey, entry);
         }
 
-        for (const [key, { cost, entries }] of byKey.entries()) {
+        for (const [groupKey, { cost, entries, workspace_id, projectId }] of groups.entries()) {
           if (cost === 0 && entries.length === 0) continue;
+          const model = groupKey.split("__")[0] || null;
           const { error } = await supabase
             .from("usage_records")
             .upsert(
               {
                 user_id: userId,
-                project_id: null,
+                project_id: projectId,
                 provider: "anthropic",
-                model: key,
+                model,
                 date: dateStr,
                 cost_usd: cost,
                 raw_data: {
                   bucket_starting_at: bucket.starting_at,
                   bucket_ending_at: bucket.ending_at,
+                  workspace_id,
                   entries,
                 } satisfies Record<string, unknown>,
               },

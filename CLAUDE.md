@@ -21,7 +21,9 @@ src/
       page.tsx                # Sign-in only (signup gated to first user)
       actions.ts              # signIn / signUp (gated) / signOut
     auth/confirm/route.ts     # Supabase email-confirm handler
-    api/sync/route.ts         # POST: pulls OpenAI + Anthropic costs
+    api/
+      sync/route.ts           # POST: manual sync (auth-gated)
+      sync/cron/route.ts      # GET: Vercel Cron entry, Bearer-auth via CRON_SECRET
     dashboard/
       layout.tsx              # Sidebar + topbar shell, auth-gated
       page.tsx                # Overview with stat cards + Sync Now
@@ -41,12 +43,23 @@ src/
       admin.ts                # Service-role client (bypasses RLS)
     sync/
       openai.ts               # syncOpenAICosts()
-      anthropic.ts            # syncAnthropicCosts()
+      anthropic.ts            # syncAnthropicCosts() — cents→dollars
+      anthropic-tokens.ts     # syncAnthropicTokens() — token-level usage
+      project-mapping.ts      # provider ID → internal project_id lookup
+      audit.ts                # writes sync_runs rows
+      run-all.ts              # orchestrator used by both routes
       types.ts                # SyncResult type
+    aggregate.ts              # daily/project rollups for charts
+  components/charts/
+    spend-area-chart.tsx      # Recharts stacked area (client)
+    project-bar-chart.tsx     # Recharts bar (client)
     utils.ts
   middleware.ts               # Root middleware → updateSession
 supabase/
-  migrations/0001_initial_schema.sql
+  migrations/
+    0001_initial_schema.sql
+    0002_project_mappings.sql # projects.{openai_project_ids,anthropic_workspace_ids} + sync_runs
+vercel.json                   # cron job: /api/sync/cron every 6h
 ```
 
 ## Run Locally
@@ -92,5 +105,11 @@ RLS is enabled on every table; policies scope rows to `auth.uid()`.
 ## Phase Status
 - [x] **Phase 1 — Foundation** (auth, schema, dashboard shell)
 - [x] **Phase 2 — Provider integration** (projects, encrypted keys, OpenAI + Anthropic cost sync, overview/usage pages)
-- [ ] Phase 3 — Scheduled health checks + usage sync, charts, caching
+- [x] **Phase 3 — Automation & charts** (Vercel Cron every 6h, project mapping by provider IDs, Anthropic token usage, Recharts daily-spend area + project bar, sync_runs audit log)
 - [ ] Phase 4 — Alerts (cost thresholds, webhooks), security hardening
+
+## Cron + audit
+- `vercel.json` schedules `/api/sync/cron` every 6 hours (`0 */6 * * *`).
+- Vercel sends `Authorization: Bearer ${CRON_SECRET}` — set `CRON_SECRET` in Vercel env. Reject 401 if header is missing/wrong.
+- Each run writes a `sync_runs` row per provider (openai / anthropic / anthropic_tokens) with status, records_processed, duration_ms.
+- The Settings page reads the latest `sync_runs.trigger='cron'` row to show "last cron run".

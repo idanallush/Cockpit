@@ -1,3 +1,4 @@
+import { format, addHours, setMinutes, setSeconds, setMilliseconds } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,19 @@ function Dot({ on }: { on: boolean }) {
   );
 }
 
+/**
+ * Schedule is "0 *\/6 * * *" — every 6 hours at minute 0 (00, 06, 12, 18 UTC).
+ * Compute the next slot relative to now.
+ */
+function nextCronRunUTC(): Date {
+  const now = new Date();
+  const candidate = setMilliseconds(setSeconds(setMinutes(now, 0), 0), 0);
+  const hour = candidate.getUTCHours();
+  const nextHour = Math.ceil((hour + (now.getMinutes() > 0 || now.getSeconds() > 0 ? 1 : 0)) / 6) * 6;
+  const delta = nextHour - hour;
+  return addHours(candidate, delta || 6);
+}
+
 export default async function SettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -18,6 +32,17 @@ export default async function SettingsPage() {
   const openaiSet = Boolean(process.env.OPENAI_ADMIN_KEY);
   const anthropicSet = Boolean(process.env.ANTHROPIC_ADMIN_KEY);
   const encryptionSet = Boolean(process.env.ENCRYPTION_KEY);
+  const cronSet = Boolean(process.env.CRON_SECRET);
+
+  const { data: lastCron } = await supabase
+    .from("sync_runs")
+    .select("created_at,status,records_processed,provider,error_message")
+    .eq("trigger", "cron")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const next = nextCronRunUTC();
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -44,6 +69,27 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Auto-sync (Vercel Cron)</CardTitle>
+          <CardDescription>
+            Runs every 6 hours when deployed on Vercel. Cron does not fire on localhost.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div>
+            <span className="text-muted-foreground">Last cron run: </span>
+            {lastCron
+              ? `${format(new Date(lastCron.created_at), "MMM d, yyyy HH:mm")} · ${lastCron.provider} · ${lastCron.status}${lastCron.records_processed ? ` (${lastCron.records_processed} rows)` : ""}`
+              : "Never run automatically"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Next scheduled run: </span>
+            {format(next, "MMM d, yyyy HH:mm")} UTC
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Server config</CardTitle>
           <CardDescription>
             Admin keys are read from env vars on the server. Restart the dev
@@ -51,29 +97,22 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Dot on={openaiSet} />
-            <span className="flex-1">OPENAI_ADMIN_KEY</span>
-            <span className="text-muted-foreground">
-              {openaiSet ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Dot on={anthropicSet} />
-            <span className="flex-1">ANTHROPIC_ADMIN_KEY</span>
-            <span className="text-muted-foreground">
-              {anthropicSet ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Dot on={encryptionSet} />
-            <span className="flex-1">ENCRYPTION_KEY</span>
-            <span className="text-muted-foreground">
-              {encryptionSet ? "configured" : "missing"}
-            </span>
-          </div>
+          <Row label="OPENAI_ADMIN_KEY" on={openaiSet} />
+          <Row label="ANTHROPIC_ADMIN_KEY" on={anthropicSet} />
+          <Row label="ENCRYPTION_KEY" on={encryptionSet} />
+          <Row label="CRON_SECRET" on={cronSet} />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Row({ label, on }: { label: string; on: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Dot on={on} />
+      <span className="flex-1 font-mono text-xs">{label}</span>
+      <span className="text-muted-foreground">{on ? "configured" : "missing"}</span>
     </div>
   );
 }

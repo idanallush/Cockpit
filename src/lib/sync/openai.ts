@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildProjectMapper } from "./project-mapping";
 import type { SyncResult } from "./types";
 
 type OpenAICostResult = {
@@ -26,12 +27,6 @@ type OpenAICostPage = {
 
 const BASE_URL = "https://api.openai.com/v1/organization/costs";
 
-/**
- * Pulls daily costs from OpenAI's organization costs endpoint and upserts
- * them into `usage_records` for the given user.
- *
- * Reads OPENAI_ADMIN_KEY from env. Admin keys look like `sk-admin-...`.
- */
 export async function syncOpenAICosts(
   userId: string,
   daysBack: number = 30
@@ -45,6 +40,8 @@ export async function syncOpenAICosts(
   const startTime = now - daysBack * 24 * 60 * 60;
 
   const supabase = createAdminClient();
+  const mapper = await buildProjectMapper(supabase, userId);
+
   let processed = 0;
   let nextPage: string | null = null;
   let safetyPages = 0;
@@ -88,18 +85,21 @@ export async function syncOpenAICosts(
           if (!Number.isFinite(cost)) continue;
           if (cost === 0 && !model) continue;
 
+          const projectId = mapper.openai(result.project_id);
+
           const { error } = await supabase
             .from("usage_records")
             .upsert(
               {
                 user_id: userId,
-                project_id: null,
+                project_id: projectId,
                 provider: "openai",
                 model,
                 date: dateStr,
                 cost_usd: cost,
                 raw_data: {
                   openai_project_id: result.project_id,
+                  openai_project_name: result.project_name,
                   bucket_start: bucket.start_time,
                   bucket_end: bucket.end_time,
                   amount: result.amount,

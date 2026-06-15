@@ -11,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SpendAreaChart } from "@/components/charts/spend-area-chart";
+import { aggregateDailySpend } from "@/lib/aggregate";
 
 type UsageRow = {
   date: string;
@@ -20,6 +22,7 @@ type UsageRow = {
   output_tokens: number | null;
   requests_count: number | null;
   cost_usd: number;
+  project_id: string | null;
 };
 
 const ALLOWED_DAYS = [7, 30, 90] as const;
@@ -37,26 +40,33 @@ function fmtInt(n: number | null | undefined) {
 
 export default async function UsagePage({ searchParams }: { searchParams: SearchParams }) {
   const { days: rawDays } = await searchParams;
-  const days: Days =
-    ALLOWED_DAYS.find((d) => d === Number(rawDays)) ?? 30;
+  const days: Days = ALLOWED_DAYS.find((d) => d === Number(rawDays)) ?? 30;
 
   const supabase = await createClient();
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  const since = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
-  const { data: records } = await supabase
-    .from("usage_records")
-    .select("date,provider,model,input_tokens,output_tokens,requests_count,cost_usd")
-    .gte("date", since)
-    .order("date", { ascending: false })
-    .limit(500);
+  const [{ data: records }, { data: projects }] = await Promise.all([
+    supabase
+      .from("usage_records")
+      .select("date,provider,model,input_tokens,output_tokens,requests_count,cost_usd,project_id")
+      .gte("date", since)
+      .order("date", { ascending: false })
+      .limit(1000),
+    supabase.from("projects").select("id,name"),
+  ]);
 
   const list = (records ?? []) as UsageRow[];
+  const nameById = new Map(
+    ((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name])
+  );
 
   const totalCost = list.reduce((sum, r) => sum + Number(r.cost_usd), 0);
   const totalIn = list.reduce((sum, r) => sum + Number(r.input_tokens ?? 0), 0);
   const totalOut = list.reduce((sum, r) => sum + Number(r.output_tokens ?? 0), 0);
+
+  const daily = aggregateDailySpend(list, days);
 
   return (
     <div className="space-y-6">
@@ -92,7 +102,16 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Records — last {days} days</CardTitle>
+          <CardTitle className="text-base">Spend — last {days} days</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SpendAreaChart data={daily} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Records</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {list.length === 0 ? (
@@ -106,6 +125,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
                   <TableHead>Date</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Model</TableHead>
+                  <TableHead>Project</TableHead>
                   <TableHead className="text-right">Input</TableHead>
                   <TableHead className="text-right">Output</TableHead>
                   <TableHead className="text-right">Requests</TableHead>
@@ -114,7 +134,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
               </TableHeader>
               <TableBody>
                 {list.map((r, i) => (
-                  <TableRow key={`${r.date}-${r.provider}-${r.model ?? "x"}-${i}`}>
+                  <TableRow key={`${r.date}-${r.provider}-${r.model ?? "x"}-${r.project_id ?? "n"}-${i}`}>
                     <TableCell>{format(new Date(r.date), "MMM d")}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
@@ -123,6 +143,11 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {r.model ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {r.project_id ? (nameById.get(r.project_id) ?? "—") : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {fmtInt(r.input_tokens)}
