@@ -3,6 +3,7 @@ import { syncOpenAICosts } from "./openai";
 import { syncAnthropicCosts } from "./anthropic";
 import { syncAnthropicTokens } from "./anthropic-tokens";
 import { logSyncRun, type SyncTrigger } from "./audit";
+import { evaluateAlerts } from "@/lib/alerts/evaluate";
 import type { SyncResult } from "./types";
 
 export type UserSyncSummary = {
@@ -51,6 +52,8 @@ export async function syncOneUser(
     result: anthropic_tokens,
     durationMs: Date.now() - t2,
   });
+
+  await evaluateAlerts(userId);
 
   return { user_id: userId, openai, anthropic, anthropic_tokens };
 }

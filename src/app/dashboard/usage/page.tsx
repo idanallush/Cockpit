@@ -1,18 +1,9 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { SpendAreaChart } from "@/components/charts/spend-area-chart";
 import { aggregateDailySpend } from "@/lib/aggregate";
+import { UsageTable } from "./usage-table";
 
 type UsageRow = {
   date: string;
@@ -58,8 +49,9 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
   ]);
 
   const list = (records ?? []) as UsageRow[];
-  const nameById = new Map(
-    ((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name])
+  const projectArr = (projects ?? []) as Array<{ id: string; name: string }>;
+  const nameByIdObj: Record<string, string> = Object.fromEntries(
+    projectArr.map((p) => [p.id, p.name])
   );
 
   const totalCost = list.reduce((sum, r) => sum + Number(r.cost_usd), 0);
@@ -119,52 +111,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
               No usage records in this range. Try clicking <strong>Sync Now</strong> on the Overview page.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead className="text-right">Input</TableHead>
-                  <TableHead className="text-right">Output</TableHead>
-                  <TableHead className="text-right">Requests</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.map((r, i) => (
-                  <TableRow key={`${r.date}-${r.provider}-${r.model ?? "x"}-${r.project_id ?? "n"}-${i}`}>
-                    <TableCell>{format(new Date(r.date), "MMM d")}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {r.provider}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.model ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {r.project_id ? (nameById.get(r.project_id) ?? "—") : (
-                        <span className="text-muted-foreground">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtInt(r.input_tokens)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtInt(r.output_tokens)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtInt(r.requests_count)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtUSD(Number(r.cost_usd))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <UsageTable rows={list} projectNameById={nameByIdObj} />
           )}
         </CardContent>
       </Card>

@@ -106,7 +106,20 @@ RLS is enabled on every table; policies scope rows to `auth.uid()`.
 - [x] **Phase 1 — Foundation** (auth, schema, dashboard shell)
 - [x] **Phase 2 — Provider integration** (projects, encrypted keys, OpenAI + Anthropic cost sync, overview/usage pages)
 - [x] **Phase 3 — Automation & charts** (Vercel Cron every 6h, project mapping by provider IDs, Anthropic token usage, Recharts daily-spend area + project bar, sync_runs audit log)
-- [ ] Phase 4 — Alerts (cost thresholds, webhooks), security hardening
+- [x] **Phase 4 — Alerts & health** (cost thresholds with 80%/100% severities, alerts page + unread bell badge, health checks against OpenAI & Anthropic admin endpoints, sortable Usage table)
+
+## Alerts engine
+- `src/lib/alerts/evaluate.ts` runs at the end of every manual + cron sync.
+- For each `cost_thresholds` row it sums matching `usage_records` (today for daily, this-month for monthly, optionally scoped by provider and/or project) and emits an `alerts` row at 80% (warning) and 100% (critical) of budget. Same-day dupes are suppressed by `(threshold_id, severity)`.
+- Bell in the top bar reads `count(alerts) where is_read=false` server-side per layout render.
+
+## Health checks
+- `src/lib/health/check.ts` pings cheap admin endpoints:
+  - OpenAI `GET /v1/organization/admin_api_keys?limit=1`
+  - Anthropic `GET /v1/organizations/api_keys?limit=1`
+- Latency + status persisted to `health_checks` (keyed to the admin row in `api_keys` if one exists) and `api_keys.last_health_status/at`.
+- Failures emit `alerts(type='api_error', severity='critical')`.
+- Invoked from `/api/health` (manual button on Settings) and inside the cron loop after each user's sync.
 
 ## Cron + audit
 - `vercel.json` schedules `/api/sync/cron` every 6 hours (`0 */6 * * *`).

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { HealthCheckButton } from "./health-check-button";
 
 function Dot({ on }: { on: boolean }) {
   return (
@@ -101,6 +102,9 @@ export default async function SettingsPage() {
           <Row label="ANTHROPIC_ADMIN_KEY" on={anthropicSet} />
           <Row label="ENCRYPTION_KEY" on={encryptionSet} />
           <Row label="CRON_SECRET" on={cronSet} />
+          <div className="pt-3">
+            <HealthCheckButton />
+          </div>
         </CardContent>
       </Card>
     </div>

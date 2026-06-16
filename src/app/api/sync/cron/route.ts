@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncOneUser, type UserSyncSummary } from "@/lib/sync/run-all";
+import { runHealthChecks } from "@/lib/health/check";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
     try {
       const summary = await syncOneUser(user.id, "cron", 30);
       summaries.push(summary);
+      await runHealthChecks(user.id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       console.error(`[cron] user ${user.id} failed:`, msg);

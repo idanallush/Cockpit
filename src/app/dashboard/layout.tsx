@@ -11,6 +11,7 @@ import {
   Bell,
   Settings,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const nav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -25,6 +26,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const { count: unreadCount } = await supabase
+    .from("alerts")
+    .select("*", { count: "exact", head: true })
+    .eq("is_read", false);
 
   return (
     <div className="min-h-screen flex bg-muted/30">
@@ -52,6 +58,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <header className="h-14 border-b bg-background flex items-center justify-between px-4 md:px-6">
           <div className="text-sm text-muted-foreground md:hidden">Cockpit</div>
           <div className="flex items-center gap-3 ml-auto">
+            <Link
+              href="/dashboard/alerts"
+              className="relative inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent"
+              aria-label="Alerts"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount && unreadCount > 0 ? (
+                <Badge
+                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] leading-none rounded-full bg-red-500 text-white"
+                  variant="default"
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Badge>
+              ) : null}
+            </Link>
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {user.email}
             </span>
