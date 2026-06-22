@@ -1,13 +1,10 @@
 import { format, startOfMonth } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SyncButton } from "./sync-button";
 import { SpendAreaChart } from "@/components/charts/spend-area-chart";
 import { ProjectBarChart } from "@/components/charts/project-bar-chart";
 import { aggregateDailySpend, aggregateByProject } from "@/lib/aggregate";
 import {
-  CalendarClock,
-  CalendarRange,
   Sparkles,
   Bot,
   TrendingUp,
@@ -15,7 +12,6 @@ import {
   LayoutGrid,
   Clock,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 type UsageRecord = {
   date: string;
@@ -64,6 +60,13 @@ export default async function OverviewPage() {
     .filter((r) => r.provider === "anthropic")
     .reduce((sum, r) => sum + Number(r.cost_usd), 0);
 
+  // crude day-over-day delta on month-to-date (just to show direction)
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const yesterdayTotal = list
+    .filter((r) => r.date === yesterday)
+    .reduce((sum, r) => sum + Number(r.cost_usd), 0);
+  const dayDelta = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal) * 100 : 0;
+
   const lastSync = list.length
     ? list.reduce((max, r) => (r.created_at > max ? r.created_at : max), list[0].created_at)
     : null;
@@ -75,158 +78,186 @@ export default async function OverviewPage() {
   const projectTotals = aggregateByProject(monthRows, projectList);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-10">
+      {/* hero-band-dark */}
+      <section className="grid lg:grid-cols-[1.1fr_1fr] gap-8 items-center">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+          <div className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-tone)] font-semibold mb-3">
+            Month-to-date spend
+          </div>
+          <div
+            className="num text-[64px] md:text-[80px] font-bold leading-[1.05] tracking-[-0.025em]"
+            style={{ color: "var(--binance-yellow)" }}
+          >
+            {fmtUSD(monthTotal)}
+          </div>
+          <p className="mt-3 text-sm text-[color:var(--muted-tone)] flex items-center gap-2">
             <Clock className="h-3.5 w-3.5" />
             {lastSync
               ? `Last synced ${format(new Date(lastSync), "MMM d, HH:mm")}`
-              : "Never synced"}
+              : "Never synced — pull cost data from your providers."}
           </p>
+          <div className="mt-6 flex items-center gap-3">
+            <SyncButton />
+            <span className="text-xs text-[color:var(--muted-strong)]">
+              since {format(new Date(monthStart), "MMM d")}
+            </span>
+          </div>
         </div>
-        <SyncButton />
-      </div>
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Today"
-          value={fmtUSD(todayTotal)}
-          icon={CalendarClock}
-          accent="primary"
-          hint="across all providers"
-        />
-        <StatCard
-          label="This month"
-          value={fmtUSD(monthTotal)}
-          icon={CalendarRange}
-          accent="primary"
-          hint={`since ${format(new Date(monthStart), "MMM d")}`}
-        />
-        <StatCard
-          label="OpenAI"
-          value={fmtUSD(openaiMonth)}
-          icon={Sparkles}
-          accent="openai"
-          hint="this month"
-        />
-        <StatCard
-          label="Anthropic"
-          value={fmtUSD(anthropicMonth)}
-          icon={Bot}
-          accent="anthropic"
-          hint="this month"
-        />
-      </div>
+        {/* markets-table-card style: provider breakdown */}
+        <div className="bg-surface-card-dark rounded-xl border border-hairline-dark p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm font-semibold">Providers — this month</div>
+            <span className="text-xs text-[color:var(--muted-tone)]">USD</span>
+          </div>
+          <ProviderRow
+            name="OpenAI"
+            symbol="OAI"
+            value={fmtUSD(openaiMonth)}
+            share={monthTotal > 0 ? (openaiMonth / monthTotal) * 100 : 0}
+          />
+          <ProviderRow
+            name="Anthropic"
+            symbol="ANT"
+            value={fmtUSD(anthropicMonth)}
+            share={monthTotal > 0 ? (anthropicMonth / monthTotal) * 100 : 0}
+          />
+          <ProviderRow
+            name="Google"
+            symbol="GOG"
+            value={fmtUSD(0)}
+            share={0}
+            dim
+          />
+        </div>
+      </section>
+
+      {/* trust-badge row */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <BadgeStat label="Today" value={fmtUSD(todayTotal)} delta={dayDelta} />
+        <BadgeStat label="This Month" value={fmtUSD(monthTotal)} />
+        <BadgeStat label="OpenAI · MTD" value={fmtUSD(openaiMonth)} icon={<Sparkles className="h-3.5 w-3.5" />} />
+        <BadgeStat label="Anthropic · MTD" value={fmtUSD(anthropicMonth)} icon={<Bot className="h-3.5 w-3.5" />} />
+      </section>
 
       {empty ? (
-        <Card className="card-lift">
-          <CardContent className="py-12 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent">
-              <TrendingUp className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              No data yet. Click <strong className="text-foreground">Sync Now</strong> to pull the latest costs from your providers.
-            </p>
-          </CardContent>
-        </Card>
+        <section className="bg-surface-card-dark rounded-xl border border-hairline-dark py-16 text-center">
+          <div
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ background: "rgba(252, 213, 53, 0.12)" }}
+          >
+            <TrendingUp className="h-6 w-6 text-yellow" />
+          </div>
+          <p className="text-sm text-[color:var(--muted-tone)] max-w-md mx-auto">
+            No data yet. Hit{" "}
+            <strong className="text-yellow">Sync Now</strong> to pull the latest costs from your providers.
+          </p>
+        </section>
       ) : (
         <>
-          <Card className="card-lift">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <section className="bg-surface-card-dark rounded-xl border border-hairline-dark p-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <CardTitle className="text-base">Daily spend</CardTitle>
+                <BarChart3 className="h-4 w-4 text-yellow" />
+                <h2 className="text-base font-semibold">Daily spend</h2>
               </div>
-              <span className="text-xs text-muted-foreground">last 30 days</span>
-            </CardHeader>
-            <CardContent>
-              <SpendAreaChart data={daily} />
-            </CardContent>
-          </Card>
+              <span className="text-xs text-[color:var(--muted-tone)]">last 30 days</span>
+            </div>
+            <SpendAreaChart data={daily} />
+          </section>
 
-          <Card className="card-lift">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <section className="bg-surface-card-dark rounded-xl border border-hairline-dark p-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4 text-primary" />
-                <CardTitle className="text-base">Top projects by cost</CardTitle>
+                <LayoutGrid className="h-4 w-4 text-yellow" />
+                <h2 className="text-base font-semibold">Top projects by cost</h2>
               </div>
-              <span className="text-xs text-muted-foreground">this month</span>
-            </CardHeader>
-            <CardContent>
-              {projectTotals.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No project data yet.
-                </p>
-              ) : (
-                <ProjectBarChart data={projectTotals} />
-              )}
-            </CardContent>
-          </Card>
+              <span className="text-xs text-[color:var(--muted-tone)]">this month</span>
+            </div>
+            {projectTotals.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[color:var(--muted-tone)]">
+                No project data yet.
+              </p>
+            ) : (
+              <ProjectBarChart data={projectTotals} />
+            )}
+          </section>
         </>
       )}
     </div>
   );
 }
 
-const accentStyles: Record<
-  string,
-  { iconBg: string; iconColor: string; ring: string }
-> = {
-  primary: {
-    iconBg: "bg-primary/10",
-    iconColor: "text-primary",
-    ring: "before:bg-primary",
-  },
-  openai: {
-    iconBg: "bg-emerald-500/10",
-    iconColor: "text-emerald-600",
-    ring: "before:bg-emerald-500",
-  },
-  anthropic: {
-    iconBg: "bg-orange-500/10",
-    iconColor: "text-orange-600",
-    ring: "before:bg-orange-500",
-  },
-};
+function ProviderRow({
+  name,
+  symbol,
+  value,
+  share,
+  dim,
+}: {
+  name: string;
+  symbol: string;
+  value: string;
+  share: number;
+  dim?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between py-3 border-b border-hairline-dark last:border-0 ${
+        dim ? "opacity-40" : ""
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="h-8 w-8 rounded-full flex items-center justify-center text-[10px] font-bold"
+          style={{ background: "var(--surface-elevated-dark)", color: "var(--binance-yellow)" }}
+        >
+          {symbol}
+        </div>
+        <div>
+          <div className="text-sm font-medium">{name}</div>
+          <div className="text-[11px] text-[color:var(--muted-tone)] num">
+            {share.toFixed(1)}% of MTD
+          </div>
+        </div>
+      </div>
+      <div className="num text-base font-semibold">{value}</div>
+    </div>
+  );
+}
 
-function StatCard({
+function BadgeStat({
   label,
   value,
-  icon: Icon,
-  accent,
-  hint,
+  delta,
+  icon,
 }: {
   label: string;
   value: string;
-  icon: LucideIcon;
-  accent: "primary" | "openai" | "anthropic";
-  hint?: string;
+  delta?: number;
+  icon?: React.ReactNode;
 }) {
-  const style = accentStyles[accent];
+  const showDelta = typeof delta === "number" && delta !== 0;
+  const up = (delta ?? 0) >= 0;
   return (
-    <Card
-      className={`card-lift relative overflow-hidden before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 ${style.ring}`}
-    >
-      <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="bg-surface-card-dark rounded-lg border border-hairline-dark px-5 py-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--muted-tone)] font-semibold flex items-center gap-1.5">
+          {icon}
           {label}
-        </CardTitle>
+        </div>
+      </div>
+      <div className="num text-2xl font-bold tracking-tight">{value}</div>
+      {showDelta ? (
         <div
-          className={`flex h-7 w-7 items-center justify-center rounded-md ${style.iconBg}`}
+          className={`num mt-1 text-xs font-medium ${up ? "text-trading-up" : "text-trading-down"}`}
         >
-          <Icon className={`h-3.5 w-3.5 ${style.iconColor}`} />
+          {up ? "▲" : "▼"} {Math.abs(delta!).toFixed(1)}% vs yesterday
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold tracking-tight tabular-nums">
-          {value}
-        </div>
-        {hint && (
-          <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="mt-1 text-xs text-[color:var(--muted-strong)]">—</div>
+      )}
+    </div>
   );
 }

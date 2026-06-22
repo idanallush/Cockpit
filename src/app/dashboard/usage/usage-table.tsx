@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -39,6 +38,12 @@ function fmtUSD(n: number) {
 }
 function fmtInt(n: number | null | undefined) {
   return (n ?? 0).toLocaleString("en-US");
+}
+
+function providerColor(p: "openai" | "anthropic" | "google") {
+  if (p === "openai") return "#0ecb81";
+  if (p === "anthropic") return "#FCD535";
+  return "#3b82f6";
 }
 
 function SortableHeader({
@@ -160,22 +165,31 @@ export function UsageTable({
           >
             <TableCell>{format(new Date(r.date), "MMM d")}</TableCell>
             <TableCell>
-              <Badge variant="outline" className="capitalize">
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: providerColor(r.provider) }}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ background: providerColor(r.provider) }}
+                />
                 {r.provider}
-              </Badge>
+              </span>
             </TableCell>
-            <TableCell className="font-mono text-xs">{r.model ?? "—"}</TableCell>
+            <TableCell className="num text-xs">{r.model ?? "—"}</TableCell>
             <TableCell className="text-sm">
               {r.project_id ? (
                 projectNameById[r.project_id] ?? "—"
               ) : (
-                <span className="text-muted-foreground">Unassigned</span>
+                <span className="text-[color:var(--muted-tone)]">Unassigned</span>
               )}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.input_tokens)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.output_tokens)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.requests_count)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtUSD(Number(r.cost_usd))}</TableCell>
+            <TableCell className="text-right num">{fmtInt(r.input_tokens)}</TableCell>
+            <TableCell className="text-right num">{fmtInt(r.output_tokens)}</TableCell>
+            <TableCell className="text-right num">{fmtInt(r.requests_count)}</TableCell>
+            <TableCell className="text-right num font-semibold text-yellow">
+              {fmtUSD(Number(r.cost_usd))}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

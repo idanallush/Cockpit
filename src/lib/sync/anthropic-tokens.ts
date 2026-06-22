@@ -51,7 +51,8 @@ export async function syncAnthropicTokens(
   }
 
   const now = new Date();
-  const ending = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // Include today's UTC bucket — see anthropic.ts for the rationale.
+  const ending = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   const starting = new Date(ending.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
   const supabase = createAdminClient();

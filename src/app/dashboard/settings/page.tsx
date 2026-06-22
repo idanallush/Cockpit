@@ -8,7 +8,8 @@ import { HealthCheckButton } from "./health-check-button";
 function Dot({ on }: { on: boolean }) {
   return (
     <span
-      className={`inline-block h-2 w-2 rounded-full ${on ? "bg-green-500" : "bg-red-500"}`}
+      className="inline-block h-2 w-2 rounded-full"
+      style={{ background: on ? "var(--trading-up)" : "var(--trading-down)" }}
     />
   );
 }
@@ -48,8 +49,10 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+          Settings
+        </h1>
+        <p className="text-sm text-[color:var(--muted-tone)] mt-1">
           Account and server configuration.
         </p>
       </div>

@@ -47,10 +47,12 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+            Projects
+          </h1>
+          <p className="text-sm text-[color:var(--muted-tone)] mt-1">
             Group API keys and attribute provider usage to internal projects.
           </p>
         </div>

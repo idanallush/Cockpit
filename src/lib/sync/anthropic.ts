@@ -47,7 +47,10 @@ export async function syncAnthropicCosts(
   }
 
   const now = new Date();
-  const ending = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // ending_at is exclusive — set to start of *tomorrow* UTC so the
+  // current UTC day's bucket is included. Anthropic's cost_report API
+  // populates today's bucket in near-real-time (with some lag).
+  const ending = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   const starting = new Date(ending.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
   const supabase = createAdminClient();

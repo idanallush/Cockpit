@@ -29,9 +29,9 @@ type AlertRow = {
 type SearchParams = Promise<{ filter?: string }>;
 
 function sevIcon(s: AlertRow["severity"]) {
-  if (s === "critical") return <CircleAlert className="h-4 w-4 text-red-500" />;
-  if (s === "warning") return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-  return <Info className="h-4 w-4 text-blue-500" />;
+  if (s === "critical") return <CircleAlert className="h-4 w-4 text-trading-down" />;
+  if (s === "warning") return <AlertTriangle className="h-4 w-4 text-yellow" />;
+  return <Info className="h-4 w-4" style={{ color: "#3b82f6" }} />;
 }
 
 export default async function AlertsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -65,8 +65,10 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Alerts</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+          Alerts
+        </h1>
+        <p className="text-sm text-[color:var(--muted-tone)] mt-1">
           Configure cost thresholds and review recent budget breaches or API errors.
         </p>
       </div>

@@ -4,17 +4,15 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-
 export function SyncButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
-    <Button
-      size="sm"
+    <button
+      type="button"
       disabled={pending}
-      className="gap-1.5 shadow-sm transition-all hover:shadow-md hover:shadow-primary/20 active:scale-[0.98]"
+      className="btn-binance inline-flex items-center gap-2 h-10 px-6 rounded-md text-sm"
       onClick={() => {
         startTransition(async () => {
           try {
@@ -48,6 +46,6 @@ export function SyncButton() {
     >
       <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
       {pending ? "Syncing..." : "Sync Now"}
-    </Button>
+    </button>
   );
 }

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SpendAreaChart } from "@/components/charts/spend-area-chart";
 import { aggregateDailySpend } from "@/lib/aggregate";
 import { UsageTable } from "./usage-table";
@@ -61,23 +60,25 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
   const daily = aggregateDailySpend(list, days);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Usage</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+            Usage
+          </h1>
+          <p className="text-sm text-[color:var(--muted-tone)] mt-1">
             Daily cost and token usage by provider and model.
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-md border p-1">
+        <div className="inline-flex items-center gap-1 rounded-md border border-hairline-dark bg-surface-card-dark p-1">
           {ALLOWED_DAYS.map((d) => (
             <Link
               key={d}
               href={`/dashboard/usage?days=${d}`}
-              className={`px-3 py-1 text-sm rounded-md ${
+              className={`px-4 py-1.5 text-sm rounded transition-colors ${
                 d === days
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[color:var(--binance-yellow)] text-[color:var(--on-primary)] font-semibold"
+                  : "text-[color:var(--muted-tone)] hover:text-yellow"
               }`}
             >
               {d}d
@@ -87,49 +88,50 @@ export default async function UsagePage({ searchParams }: { searchParams: Search
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Stat label="Total cost" value={fmtUSD(totalCost)} />
+        <Stat label="Total cost" value={fmtUSD(totalCost)} accent />
         <Stat label="Input tokens" value={fmtInt(totalIn)} />
         <Stat label="Output tokens" value={fmtInt(totalOut)} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Spend — last {days} days</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SpendAreaChart data={daily} />
-        </CardContent>
-      </Card>
+      <section className="bg-surface-card-dark rounded-xl border border-hairline-dark p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold">Spend — last {days} days</h2>
+          <span className="text-xs text-[color:var(--muted-tone)]">stacked by provider</span>
+        </div>
+        <SpendAreaChart data={daily} />
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Records</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {list.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              No usage records in this range. Try clicking <strong>Sync Now</strong> on the Overview page.
-            </div>
-          ) : (
-            <UsageTable rows={list} projectNameById={nameByIdObj} />
-          )}
-        </CardContent>
-      </Card>
+      <section className="bg-surface-card-dark rounded-xl border border-hairline-dark overflow-hidden">
+        <div className="px-6 py-4 border-b border-hairline-dark flex items-center justify-between">
+          <h2 className="text-base font-semibold">Records</h2>
+          <span className="text-xs text-[color:var(--muted-tone)]">
+            {list.length.toLocaleString()} rows
+          </span>
+        </div>
+        {list.length === 0 ? (
+          <div className="py-12 text-center text-sm text-[color:var(--muted-tone)]">
+            No usage records in this range. Try clicking{" "}
+            <strong className="text-yellow">Sync Now</strong> on Overview.
+          </div>
+        ) : (
+          <UsageTable rows={list} projectNameById={nameByIdObj} />
+        )}
+      </section>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-xl font-semibold tabular-nums">{value}</div>
-      </CardContent>
-    </Card>
+    <div className="bg-surface-card-dark border border-hairline-dark rounded-lg px-5 py-4">
+      <div className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--muted-tone)] font-semibold mb-2">
+        {label}
+      </div>
+      <div
+        className={`num text-2xl font-bold tracking-tight ${accent ? "text-yellow" : ""}`}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

@@ -28,11 +28,11 @@ const providerLabel: Record<ApiKeyRow["provider"], string> = {
 function statusDot(status: ApiKeyRow["last_health_status"]) {
   const color =
     status === "ok"
-      ? "bg-green-500"
+      ? "var(--trading-up)"
       : status === "error"
-        ? "bg-red-500"
-        : "bg-zinc-400";
-  return <span className={`inline-block h-2 w-2 rounded-full ${color}`} />;
+        ? "var(--trading-down)"
+        : "var(--muted-tone)";
+  return <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />;
 }
 
 export default async function ApiKeysPage() {
@@ -52,10 +52,12 @@ export default async function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">API Keys</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight" style={{ letterSpacing: "-0.02em" }}>
+            API Keys
+          </h1>
+          <p className="text-sm text-[color:var(--muted-tone)] mt-1">
             Admin keys are read from env. Project-level keys are encrypted in the DB.
           </p>
         </div>
