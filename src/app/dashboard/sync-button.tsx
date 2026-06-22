@@ -14,6 +14,7 @@ export function SyncButton() {
     <Button
       size="sm"
       disabled={pending}
+      className="gap-1.5 shadow-sm transition-all hover:shadow-md hover:shadow-primary/20 active:scale-[0.98]"
       onClick={() => {
         startTransition(async () => {
           try {

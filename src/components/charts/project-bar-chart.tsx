@@ -28,6 +28,12 @@ export function ProjectBarChart({ data }: { data: ProjectPoint[] }) {
     <div className="h-72 w-full">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7c6df5" stopOpacity={0.95} />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity={0.75} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis
             dataKey="name"
