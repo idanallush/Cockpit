@@ -2,19 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  KeyRound,
+  Activity,
+  Bell,
+  Settings,
+} from "lucide-react";
+
+const icons = {
+  LayoutDashboard,
+  FolderKanban,
+  KeyRound,
+  Activity,
+  Bell,
+  Settings,
+} as const;
+
+export type NavIcon = keyof typeof icons;
 
 export function NavLink({
   href,
   label,
-  icon: Icon,
+  icon,
   badge,
 }: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   badge?: number;
 }) {
+  const Icon = icons[icon];
   const pathname = usePathname();
   const isActive =
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);

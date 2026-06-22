@@ -3,24 +3,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
-import {
-  LayoutDashboard,
-  FolderKanban,
-  KeyRound,
-  Activity,
-  Bell,
-  Settings,
-  Gauge,
-} from "lucide-react";
-import { NavLink } from "./nav-link";
+import { Bell, Gauge } from "lucide-react";
+import { NavLink, type NavIcon } from "./nav-link";
 
-const nav = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/projects", label: "Projects", icon: FolderKanban },
-  { href: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
-  { href: "/dashboard/usage", label: "Usage", icon: Activity },
-  { href: "/dashboard/alerts", label: "Alerts", icon: Bell },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+const nav: { href: string; label: string; icon: NavIcon }[] = [
+  { href: "/dashboard", label: "Overview", icon: "LayoutDashboard" },
+  { href: "/dashboard/projects", label: "Projects", icon: "FolderKanban" },
+  { href: "/dashboard/api-keys", label: "API Keys", icon: "KeyRound" },
+  { href: "/dashboard/usage", label: "Usage", icon: "Activity" },
+  { href: "/dashboard/alerts", label: "Alerts", icon: "Bell" },
+  { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
